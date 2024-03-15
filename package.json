@@ -1,6 +1,6 @@
 {
   "name": "@anypay/prices-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Prices client for Anypay developers",
   "main": "dist/index.node.js",
   "browser": "dist/index.browser.js",
