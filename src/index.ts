@@ -21,18 +21,18 @@ export interface Conversion {
     timestamp: Date
 }
 
-interface Message {
+export interface Message {
     topic: string;
     payload: any
 }
 
-interface NewConversionParams {
+export interface NewConversionParams {
     base: string;
     value: number;
     quote: string;
 }
 
-interface ClientOptions {
+export interface ClientOptions {
     http_api_url?: string;
     websocket_api_url?: string;
     token?: string;
