@@ -1,120 +1,195 @@
-# @anypay/prices-client
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Anypay Prices Client — Anypay" width="100%" />
+</p>
 
-## Overview
+<p align="center">
+  <a href="https://www.anypayx.com"><img src="https://img.shields.io/badge/Anypay-Bitcoin%20%26%20Stablecoin%20Payments-00AB55?style=for-the-badge&labelColor=161C24" alt="Anypay" /></a>
+  <a href="https://www.npmjs.com/package/@anypay/prices-client"><img src="https://img.shields.io/npm/v/@anypay/prices-client?style=for-the-badge&logo=npm&labelColor=161C24&color=00AB55" alt="npm version" /></a>
+  <a href="https://github.com/anypay/prices-client-ts"><img src="https://img.shields.io/github/license/anypay/prices-client-ts?style=for-the-badge&labelColor=161C24&color=00AB55" alt="ISC License" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.4-3178C6?style=for-the-badge&logo=typescript&logoColor=white&labelColor=161C24" alt="TypeScript" /></a>
+</p>
 
-`@anypay/prices-client` is a TypeScript library for connecting to and interacting with the Anypay Prices API. This client library provides easy access to real-time financial market price updates and conversion rates. It's built for both browser and Node.js environments, making it versatile for various applications, including web apps, server-side applications, and more.
+<p align="center">
+  <a href="https://www.anypayx.com">Website</a> ·
+  <a href="https://www.anypayx.com/docs">Docs</a> ·
+  <a href="https://api.anypayx.com/api">API</a> ·
+  <a href="https://www.anypayx.com/prices">Prices</a> ·
+  <a href="https://github.com/anypay">GitHub</a>
+</p>
 
-## Features
+---
 
-- Real-time price updates via WebSocket.
-- Fetch current prices and conversion rates through HTTP API.
-- Automatic reconnection to WebSocket in case of disconnection.
-- Typed interfaces for easy integration and development within TypeScript projects.
+## What It Is & Purpose
 
-## Installation
+**Anypay Prices Client** is the official TypeScript SDK for the Anypay Prices API. It provides real-time cryptocurrency and stablecoin price feeds, conversion rates, and market data through both HTTP REST endpoints and WebSocket streams. Built for browser and Node.js environments, it delivers reliable, up-to-the-second quotes for Bitcoin, Ethereum, and stablecoins (USDC, USDT, RLUSD, NUSD) across exchanges.
 
-Install `@anypay/prices-client` using npm:
+Whether you're building a merchant dashboard, a trading interface, a payment calculator, or a portfolio tracker, this SDK eliminates the complexity of exchange polling, WebSocket reconnection, and rate normalization. It wraps the Prices API in a clean, typed interface so you can focus on your application logic, not on price feed infrastructure.
+
+The SDK is production-ready, used by Anypay's own merchant dashboard and checkout flows, and maintained in lockstep with the Prices API's evolving feature set.
+
+## Why Use It
+
+**Reliable price data for crypto payment applications.** When a merchant quotes a customer "0.00032 BTC for $12 USD," that conversion must be accurate, fresh, and available. This SDK handles that entire lifecycle — initial fetch, continuous updates, reconnection on network failure, and clean typed interfaces for every quote.
+
+**Who it's for:**
+
+- **Merchants and payment integrators** who need live BTC/ETH/stablecoin rates for point-of-sale systems, invoices, or checkout flows.
+- **Developers building dashboards** that display current portfolio value, conversion rates, or market trends.
+- **Applications requiring instant conversion quotes** without maintaining exchange API credentials or handling rate-limiting, caching, and fallback logic.
+
+**Where it fits:**
+
+The Prices Client sits between your application and the Anypay Prices API, which aggregates live quotes from multiple exchanges and normalizes them into a single, stable feed. It is a dependency of Anypay's merchant dashboard (`anypayx.com`), the web3-checkout UI, and internal settlement calculators. When your app calls `client.listPrices()`, it receives Anypay's vetted, rate-limited, deduplicated market data — no raw exchange SDKs required.
+
+## How It Works
+
+<p align="center">
+  <img src="docs/assets/architecture.svg" alt="How Anypay Prices Client works in the Anypay stack" width="100%" />
+</p>
+
+The SDK operates in four stages:
+
+1. **Your App** imports `@anypay/prices-client` and calls `createClient()` with optional configuration (custom API URLs, auth tokens).
+2. **prices-client-ts** establishes either an HTTP connection (for one-shot price fetches) or a WebSocket connection (for continuous live updates) to the Anypay Prices API.
+3. **Prices API** responds with current quotes aggregated from exchanges, normalized to USD or other base currencies, and timestamped.
+4. **Live Quotes** flow back to your application via typed events (`price/updated`) or promise-resolved API responses (`listPrices()`, `convertPrice()`).
+
+**WebSocket mode** (`subscribeToPricesUpdates()`) opens a persistent connection and emits `price/updated` events whenever a quote changes. The SDK handles reconnection automatically if the connection drops. **HTTP mode** (`listPrices()`, `getPrice()`, `convertPrice()`) is for point-in-time queries: grab the latest rate, convert an amount, and move on. Both modes support optional bearer-token authentication for access-controlled deployments.
+
+The SDK is stateless beyond the WebSocket connection; it doesn't cache prices locally or buffer conversions. Every call hits the Prices API's live feed.
+
+## Quickstart / How to Use It
+
+### Installation
+
+Install via npm:
 
 ```bash
 npm install @anypay/prices-client
 ```
 
-Or using yarn:
+Or via yarn:
 
 ```bash
 yarn add @anypay/prices-client
 ```
 
-## Usage
-
-### Creating a Client
-
-First, import and create a client instance. You can optionally pass in configuration options.
+### Create a Client
 
 ```typescript
 import { createClient } from '@anypay/prices-client';
 
 const client = createClient({
-  http_api_url: 'https://prices.anypayx.com', // Optional custom API URL
-  websocket_api_url: 'wss://prices.anypayx.com', // Optional custom WebSocket URL
-  token: 'your_api_token_here', // Optional API token for authenticated requests
+  http_api_url: 'https://prices.anypayx.com',       // Optional; defaults to production
+  websocket_api_url: 'wss://prices.anypayx.com',    // Optional; defaults to production
+  token: 'your_bearer_token_here'                   // Optional; for authenticated endpoints
 });
 ```
 
-### Subscribing to Price Updates
-
-To listen for real-time updates on prices:
+### Subscribe to Real-Time Price Updates (WebSocket)
 
 ```typescript
 client.subscribeToPricesUpdates();
 
-client.on('price/updated', (price) => {
-  console.log('Price updated', price);
-});
-
-client.on('websocket.error', (err) => {
-  console.error('WebSocket error', err);
+client.on('price/updated', (event) => {
+  console.log('Price updated:', event.payload);
+  // { base: 'USD', quote: 'BTC', value: 0.000032, source: 'coinbase', updated_at: '2026-11-27T...' }
 });
 
 client.on('websocket.open', () => {
-  console.log('WebSocket open');
+  console.log('WebSocket connected');
 });
 
-client.on('websocket.message', (data) => {
-  console.log(data);
+client.on('websocket.error', (err) => {
+  console.error('WebSocket error:', err);
 });
 ```
 
-### Unsubscribing from Price Updates
-
-To stop receiving price updates:
+To unsubscribe:
 
 ```typescript
 client.unsubscribeFromPricesUpdates();
 ```
 
-### Fetching Prices and Conversions
-
-Fetch current prices:
+### Fetch Current Prices (HTTP)
 
 ```typescript
-async function fetchPrices() {
-  const prices = await client.listPrices();
-  console.log(prices);
-}
-fetchPrices();
+const prices = await client.listPrices();
+console.log(prices);
+// [{ base: 'USD', quote: 'BTC', value: 0.000032 }, ...]
 ```
 
-Convert one currency to another:
+### Get a Specific Price
 
 ```typescript
-async function convertCurrency() {
-  const conversion = await client.convertPrice({
-    base: 'USD',
-    value: 1000,
-    quote: 'BTC'
-  });
-  console.log(conversion);
-}
-convertCurrency();
+const price = await client.getPrice({
+  base: 'USD',
+  quote: 'BTC',
+  source: 'coinbase'  // Optional; omit for Anypay's default aggregated rate
+});
+console.log(price);
+// { base: 'USD', quote: 'BTC', value: 0.000032 }
 ```
 
-## Development
+### Convert Currency Amounts
 
-This library is open for contributions! Clone the repository, install dependencies, and make sure to follow the coding standards and commit message guidelines.
+```typescript
+const conversion = await client.convertPrice({
+  base: 'USD',
+  value: 1000,
+  quote: 'BTC'
+});
+console.log(conversion);
+// {
+//   base: { currency: 'USD', value: 1000 },
+//   quote: { currency: 'BTC', value: 0.032 },
+//   timestamp: Date
+// }
+```
 
-## Testing
-
-Run the test suite to ensure your changes do not break existing functionality:
+### Run Tests
 
 ```bash
 npm run test
 ```
 
-## License
+The test suite uses Jest and is located in `src/`.
 
-This project is licensed under the ISC License. See the LICENSE file for details.
+## Next Moves for Growth
+
+1. **Add CI/CD and automated releases:** The repo currently builds with `webpack` and runs tests with `jest`, but lacks GitHub Actions for CI or automated npm publishing. Wire a CI workflow (`npm test`, `npm run build`) and semantic-release or a manual publish step so every merge to `main` can ship a new version automatically.
+
+2. **Improve error handling and retry logic:** The WebSocket reconnection logic is basic (1-second fixed delay). Consider exponential backoff, max retry limits, and an `on('reconnecting')` event so applications can display "reconnecting" UI states. HTTP calls via axios have no retry wrapper; a failed `listPrices()` call returns raw axios errors. Wrap them in try/catch with meaningful error messages or a `PricesClientError` class.
+
+3. **Document authentication and environment variables:** The `token` parameter is optional and undocumented. Add a section to this README explaining when auth is required (private deployments? rate-limited production?), how to obtain a token, and whether `.env` patterns (e.g., `ANYPAY_PRICES_TOKEN`) are recommended.
+
+4. **Publish TypeScript source maps:** `dist/` currently ships `.js` and `.d.ts` files, but no `.js.map` for debugging. Enable `sourceMap: true` in `tsconfig.json` and include maps in the npm package so developers can step through SDK code in their debuggers.
+
+5. **Expand test coverage:** `src/test_client.ts` is a manual smoke test, not a Jest suite. Add unit tests for `listPrices()`, `convertPrice()`, WebSocket reconnection, and event emission. Mock axios and ws to avoid hitting the live API in CI.
+
+## Anypay Ecosystem & License
+
+**Anypay Prices Client** is part of [Anypay](https://www.anypayx.com) — Bitcoin & Stablecoin payments for business. Merchants and developers use Anypay to accept BTC, ETH, and stablecoins such as USDC, USDT, RLUSD, and NUSD through invoices, APIs, SDKs, webhooks, WooCommerce, and mobile POS.
+
+| Project | Role |
+| --- | --- |
+| [anypay](https://github.com/anypay/anypay) | Invoice & payments platform / API (`@anypay/server`) |
+| [anypay-sdk](https://github.com/anypay/anypay-sdk) | TypeScript SDK for browser & Node.js (`@anypay/client`) |
+| [web3-checkout-vite](https://github.com/anypay/web3-checkout-vite) | Current checkout UI (`checkout.anypayx.com`) |
+| [walletbot](https://github.com/anypay/walletbot) | Self-custody headless wallet (`@anypay/walletbot`) |
+
+**Related to Prices Client:**
+
+| Project | Role |
+| --- | --- |
+| [prices.anypayx.com](https://www.anypayx.com/prices) | Live Prices API endpoint & web UI |
+| [anypayx.com](https://github.com/anypay/anypayx.com) | Merchant dashboard consuming this SDK for live rates |
+
+**License:** This project is licensed under the **ISC License**. See the `LICENSE` file (or `package.json`) for details. ISC is a permissive license similar to MIT, allowing commercial use, modification, and redistribution.
 
 ---
 
-This README provides a comprehensive guide to using the `@anypay/prices-client` library, from installation to making API calls for price updates and conversions. Adjust the content as needed to match the specifics of your project and its development workflow.
+<p align="center">
+  <a href="https://www.anypayx.com"><img src="https://raw.githubusercontent.com/anypay/anypayx.com/master/public/logo/logo_single.svg" alt="Anypay" width="56" /></a><br/>
+  <sub>Bitcoin & Stablecoin Payments For Business · <a href="https://www.anypayx.com">anypayx.com</a> · <a href="https://x.com/xanypay">@xanypay</a></sub>
+</p>
